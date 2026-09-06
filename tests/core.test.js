@@ -45,7 +45,7 @@ test('longer keyword wins when groups both match', () => {
   assert.equal(result.groupId, 'b');
 });
 
-test('unknown chat remains unclassified', () => {
+test('unknown chat remains unclassified internally', () => {
   const result = Core.classifyConversation({ id: '6', title: 'Burger recipe' }, groups, {});
   assert.equal(result.groupId, null);
   assert.equal(result.strength, 'none');
@@ -62,10 +62,29 @@ test('display title removes command and project prefix', () => {
   assert.equal(Core.cleanDisplayTitle('MPC — Fix extension', groups[0]), 'Fix extension');
 });
 
-test('settings migration sanitizes malformed values', () => {
-  const settings = Core.migrateSettings({ groups: [{ name: ' MPC ', keywords: [' x ', '', 9] }], autoScan: false });
+test('settings migration sanitizes malformed values and drops legacy unclassified UI setting', () => {
+  const settings = Core.migrateSettings({
+    groups: [{ name: ' MPC ', keywords: [' x ', '', 9] }],
+    autoScan: false,
+    showUnclassified: true
+  });
   assert.equal(settings.groups[0].name, 'MPC');
   assert.deepEqual(settings.groups[0].keywords, ['x', '9']);
   assert.equal(settings.autoScan, false);
-  assert.equal(settings.showUnclassified, true);
+  assert.equal('showUnclassified' in settings, false);
+});
+
+test('ui state starts with groups closed and native projects hidden', () => {
+  const state = Core.migrateUiState(null, groups);
+  assert.deepEqual(state.openGroups, {});
+  assert.equal(state.projectsVisible, false);
+});
+
+test('ui state keeps only open known groups', () => {
+  const state = Core.migrateUiState({
+    openGroups: { mpc: true, jobpilot: false, deleted: true },
+    projectsVisible: true
+  }, groups);
+  assert.deepEqual(state.openGroups, { mpc: true });
+  assert.equal(state.projectsVisible, true);
 });

@@ -9,7 +9,7 @@ Instead of manually moving every conversation after creating it, define rules on
 - `github.com/example/mpc` → **MPC**
 - `#JobPilot` → **JobPilot**
 
-The extension adds a **Workspaces** panel to the ChatGPT sidebar and keeps its own local conversation index.
+The extension reuses the ChatGPT sidebar area normally occupied by the native **Projects** section. Native projects are collapsed behind a compact **Show projects** control, leaving the main sidebar space for workspace groups.
 
 ## MVP features
 
@@ -20,16 +20,19 @@ The extension adds a **Workspaces** panel to the ChatGPT sidebar and keeps its o
 - Deterministic priority: command → project prefix → longest keyword → group order.
 - Automatic indexing of ChatGPT conversation links as they load.
 - User-triggered deep scan that scrolls through the lazy-loaded sidebar, collects chat titles, then restores the previous scroll position.
-- Local virtual folders in the ChatGPT sidebar.
-- Unclassified folder for chats that match no rule.
+- Compact local workspace groups in the ChatGPT sidebar.
+- Groups are closed by default and remember their open/closed state.
+- Native ChatGPT Projects can be shown or hidden without moving conversations.
 - Popup with group counts and scan actions.
 - Local-only storage via `chrome.storage.local`.
 - Light/dark mode using system colors.
 - Pure classification core with Node tests and GitHub Actions CI.
 
+Chats that do not match a workspace rule remain indexed internally but are not shown in a separate "Unclassified" folder.
+
 ## Privacy
 
-The MVP does not use a server and does not call private ChatGPT APIs. Workspace settings and indexed metadata stay in the browser's extension storage.
+The MVP does not use a server and does not call private ChatGPT APIs. Workspace settings, sidebar state, and indexed metadata stay in the browser's extension storage.
 
 The index stores the chat ID, title, ChatGPT path, last-seen timestamp, and—when a chat is opened—the first user-message snippet so explicit commands or keywords can be recognized there too.
 
@@ -66,6 +69,16 @@ No build step is required.
 
 A title such as `MPC — API keys` is recognized automatically from the group name; it does not need to be duplicated as a keyword.
 
+## Sidebar behavior
+
+Workspace groups are inserted around the native Projects area instead of being prepended above every ChatGPT sidebar menu.
+
+- Native projects are hidden by default behind **Show projects**.
+- Clicking **Show projects** reveals the native section; **Hide projects** collapses it again.
+- Workspace groups are closed by default.
+- Opening or closing a group is persisted locally and survives ChatGPT rerenders and page reloads.
+- The content observer ignores mutations created by the extension itself to avoid render loops that reset group state.
+
 ## How scanning works
 
 ChatGPT lazy-loads conversation history. The extension continuously indexes links that appear in the sidebar.
@@ -76,7 +89,7 @@ Because old chat bodies are not exposed in the sidebar, first-message rules can 
 
 ## Native ChatGPT Projects
 
-The MVP deliberately treats local virtual workspaces as the reliable source of organization. Automatic movement into native ChatGPT Projects is not implemented because there is no stable public API for that workflow.
+The extension only collapses/reveals the existing native Projects UI. It does not automatically move chats into native Projects because there is no stable public API for that workflow.
 
 A future native-project adapter can be added separately so a ChatGPT UI change cannot break local grouping.
 

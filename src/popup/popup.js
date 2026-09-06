@@ -33,17 +33,6 @@
       row.append(name, count);
       root.append(row);
     });
-
-    if (settings.showUnclassified) {
-      const row = document.createElement('div');
-      row.className = 'count-row';
-      const name = document.createElement('span');
-      name.textContent = 'Unclassified';
-      const count = document.createElement('span');
-      count.textContent = String(summary.unclassified);
-      row.append(name, count);
-      root.append(row);
-    }
   }
 
   async function activeTab() {
