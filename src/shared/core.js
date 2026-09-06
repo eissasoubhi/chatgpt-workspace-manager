@@ -10,14 +10,19 @@
   const STORAGE_KEYS = Object.freeze({
     settings: 'cwm.settings.v1',
     index: 'cwm.index.v1',
-    overrides: 'cwm.overrides.v1'
+    overrides: 'cwm.overrides.v1',
+    ui: 'cwm.ui.v1'
   });
 
   const DEFAULT_SETTINGS = Object.freeze({
     version: 1,
     groups: [],
-    showUnclassified: true,
     autoScan: true
+  });
+
+  const DEFAULT_UI_STATE = Object.freeze({
+    openGroups: {},
+    projectsVisible: false
   });
 
   function clone(value) {
@@ -73,8 +78,31 @@
       groups: Array.isArray(settings.groups)
         ? settings.groups.map(sanitizeGroup)
         : [],
-      showUnclassified: settings.showUnclassified !== false,
       autoScan: settings.autoScan !== false
+    };
+  }
+
+  function migrateUiState(value, groups = []) {
+    const state = value && typeof value === 'object' ? value : {};
+    const knownGroupIds = new Set(
+      (Array.isArray(groups) ? groups : [])
+        .map((group) => String(group && group.id || ''))
+        .filter(Boolean)
+    );
+    const openGroups = {};
+    const rawOpenGroups = state.openGroups && typeof state.openGroups === 'object'
+      ? state.openGroups
+      : {};
+
+    Object.entries(rawOpenGroups).forEach(([groupId, isOpen]) => {
+      if (isOpen === true && (!knownGroupIds.size || knownGroupIds.has(groupId))) {
+        openGroups[groupId] = true;
+      }
+    });
+
+    return {
+      openGroups,
+      projectsVisible: state.projectsVisible === true
     };
   }
 
@@ -212,9 +240,11 @@
   return {
     STORAGE_KEYS,
     DEFAULT_SETTINGS: clone(DEFAULT_SETTINGS),
+    DEFAULT_UI_STATE: clone(DEFAULT_UI_STATE),
     normalizeText,
     createGroup,
     migrateSettings,
+    migrateUiState,
     startsWithToken,
     startsWithProjectName,
     classifyConversation,
