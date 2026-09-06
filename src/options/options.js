@@ -21,15 +21,33 @@
     };
   }
 
+  function cards() {
+    return Array.from(groupsRoot.querySelectorAll(':scope > .group-card'));
+  }
+
   function updateEmptyState() {
-    emptyState.hidden = groupsRoot.children.length > 0;
+    emptyState.hidden = cards().length > 0;
+  }
+
+  function updateOrderButtons() {
+    const groupCards = cards();
+    groupCards.forEach((card, index) => {
+      card.querySelector('.move-up').disabled = index === 0;
+      card.querySelector('.move-down').disabled = index === groupCards.length - 1;
+    });
   }
 
   function moveCard(card, direction) {
-    const sibling = direction < 0 ? card.previousElementSibling : card.nextElementSibling;
-    if (!sibling) return;
-    if (direction < 0) groupsRoot.insertBefore(card, sibling);
-    else groupsRoot.insertBefore(sibling, card);
+    const groupCards = cards();
+    const currentIndex = groupCards.indexOf(card);
+    const targetIndex = currentIndex + direction;
+    if (currentIndex < 0 || targetIndex < 0 || targetIndex >= groupCards.length) return;
+
+    const target = groupCards[targetIndex];
+    if (direction < 0) target.before(card);
+    else target.after(card);
+    updateOrderButtons();
+    saveStatus.textContent = 'Order changed. Save to apply.';
   }
 
   function addGroupCard(group) {
@@ -40,28 +58,36 @@
     card.querySelector('.group-name').value = group.name || '';
     card.querySelector('.group-command').value = group.command || '';
     card.querySelector('.group-keywords').value = (group.keywords || []).join('\n');
-    card.querySelector('.move-up').addEventListener('click', () => moveCard(card, -1));
-    card.querySelector('.move-down').addEventListener('click', () => moveCard(card, 1));
+    card.querySelector('.move-up').addEventListener('click', (event) => {
+      event.preventDefault();
+      moveCard(card, -1);
+    });
+    card.querySelector('.move-down').addEventListener('click', (event) => {
+      event.preventDefault();
+      moveCard(card, 1);
+    });
     card.querySelector('.remove-group').addEventListener('click', () => {
       card.remove();
       updateEmptyState();
+      updateOrderButtons();
     });
     groupsRoot.append(fragment);
     updateEmptyState();
+    updateOrderButtons();
   }
 
   async function load() {
     const stored = await chrome.storage.local.get(Core.STORAGE_KEYS.settings);
     settings = Core.migrateSettings(stored[Core.STORAGE_KEYS.settings]);
     document.getElementById('auto-scan').checked = settings.autoScan;
-    document.getElementById('show-unclassified').checked = settings.showUnclassified;
     groupsRoot.replaceChildren();
     settings.groups.forEach(addGroupCard);
     updateEmptyState();
+    updateOrderButtons();
   }
 
   async function save() {
-    const groups = Array.from(groupsRoot.querySelectorAll('.group-card')).map(readCard);
+    const groups = cards().map(readCard);
     const invalid = groups.find((group) => !group.name);
     if (invalid) {
       saveStatus.textContent = 'Every group needs a name.';
@@ -71,8 +97,7 @@
     settings = Core.migrateSettings({
       version: 1,
       groups,
-      autoScan: document.getElementById('auto-scan').checked,
-      showUnclassified: document.getElementById('show-unclassified').checked
+      autoScan: document.getElementById('auto-scan').checked
     });
     await chrome.storage.local.set({ [Core.STORAGE_KEYS.settings]: settings });
     saveStatus.textContent = 'Saved.';
@@ -81,8 +106,8 @@
 
   document.getElementById('add-group').addEventListener('click', () => {
     addGroupCard(Core.createGroup('New group'));
-    const cards = groupsRoot.querySelectorAll('.group-card');
-    cards[cards.length - 1].querySelector('.group-name').select();
+    const groupCards = cards();
+    groupCards[groupCards.length - 1].querySelector('.group-name').select();
   });
   document.getElementById('save').addEventListener('click', save);
 
