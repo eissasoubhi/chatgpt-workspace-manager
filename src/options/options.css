@@ -105,6 +105,8 @@ textarea { resize: vertical; line-height: 1.45; }
 .icon-button { width: 34px; height: 34px; background: transparent; color: CanvasText; }
 .icon-button:hover, .button.secondary:hover { background: color-mix(in srgb, CanvasText 14%, transparent); }
 .icon-button.danger:hover { background: color-mix(in srgb, #d00 12%, transparent); }
+.icon-button:disabled { opacity: .35; cursor: default; }
+.icon-button:disabled:hover { background: transparent; }
 
 .empty-state {
   padding: 28px 10px;
