@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Workspace Manager</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main class="popup">
+      <header>
+        <strong>Workspace Manager</strong>
+        <span id="summary">Loading…</span>
+      </header>
+      <div id="counts" class="counts"></div>
+      <div class="actions">
+        <button id="scan-visible" type="button">Scan loaded chats</button>
+        <button id="scan-deep" type="button">Deep scan history</button>
+        <button id="settings" type="button">Settings</button>
+      </div>
+      <p id="status" role="status" aria-live="polite"></p>
+    </main>
+    <script src="../shared/core.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>
