@@ -1,74 +1,67 @@
+#cwm-projects-toggle,
 #cwm-workspace-panel {
   box-sizing: border-box;
-  margin: 8px;
-  padding: 8px;
-  border: 1px solid color-mix(in srgb, currentColor 14%, transparent);
-  border-radius: 12px;
-  background: color-mix(in srgb, Canvas 96%, transparent);
-  color: CanvasText;
+  color: inherit;
   font: 13px/1.35 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+#cwm-projects-toggle {
+  display: flex;
+  align-items: center;
+  width: calc(100% - 16px);
+  min-height: 32px;
+  margin: 2px 8px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+#cwm-projects-toggle:hover,
+#cwm-projects-toggle:focus-visible {
+  background: color-mix(in srgb, currentColor 8%, transparent);
+  outline: none;
+}
+
+#cwm-workspace-panel {
+  width: 100%;
+  padding: 0 8px 4px;
 }
 
 #cwm-workspace-panel * {
   box-sizing: border-box;
 }
 
-.cwm-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 6px;
-}
-
-.cwm-title {
-  overflow: hidden;
-  font-weight: 650;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.cwm-actions {
-  display: flex;
-  gap: 4px;
-}
-
-.cwm-icon-button {
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-  font: inherit;
-}
-
-.cwm-icon-button:hover,
-.cwm-icon-button:focus-visible {
-  background: color-mix(in srgb, currentColor 10%, transparent);
-  outline: none;
-}
-
-.cwm-empty {
-  padding: 8px 4px;
-  color: color-mix(in srgb, currentColor 65%, transparent);
+.cwm-empty,
+.cwm-group-empty {
+  padding: 7px 8px;
+  color: color-mix(in srgb, currentColor 60%, transparent);
+  font-size: 12px;
 }
 
 .cwm-group {
-  margin: 2px 0;
+  margin: 1px 0;
 }
 
 .cwm-group > summary {
   display: flex;
   align-items: center;
   gap: 6px;
-  min-height: 30px;
+  min-height: 32px;
+  padding: 5px 8px;
   border-radius: 8px;
   cursor: pointer;
   list-style: none;
-  font-weight: 600;
+  user-select: none;
+}
+
+.cwm-group > summary:hover,
+.cwm-group > summary:focus-visible {
+  background: color-mix(in srgb, currentColor 8%, transparent);
+  outline: none;
 }
 
 .cwm-group > summary::-webkit-details-marker {
@@ -77,6 +70,7 @@
 
 .cwm-group > summary::before {
   content: "›";
+  flex: 0 0 14px;
   width: 14px;
   text-align: center;
   transition: transform 120ms ease;
@@ -86,9 +80,15 @@
   transform: rotate(90deg);
 }
 
+.cwm-group-name {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .cwm-count {
   margin-left: auto;
-  padding-right: 4px;
   color: color-mix(in srgb, currentColor 55%, transparent);
   font-size: 12px;
   font-weight: 500;
@@ -96,8 +96,8 @@
 
 .cwm-chat-list {
   display: grid;
-  gap: 2px;
-  padding: 2px 0 5px 18px;
+  gap: 1px;
+  padding: 1px 0 4px 20px;
 }
 
 .cwm-chat-link {
@@ -115,11 +115,4 @@
 .cwm-chat-link:focus-visible {
   background: color-mix(in srgb, currentColor 8%, transparent);
   outline: none;
-}
-
-.cwm-status {
-  min-height: 18px;
-  padding: 5px 4px 0;
-  color: color-mix(in srgb, currentColor 62%, transparent);
-  font-size: 11px;
 }
