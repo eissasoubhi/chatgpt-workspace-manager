@@ -1,0 +1,14 @@
+{
+  "name": "chatgpt-workspace-manager",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local-first Chrome extension for grouping ChatGPT conversations into smart workspaces.",
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "validate": "node scripts/validate.mjs",
+    "check": "npm run test && npm run validate"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
