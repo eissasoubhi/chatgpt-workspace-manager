@@ -155,12 +155,10 @@
   }
 
   function isConversationExcluded(exclusions, conversationId, groupId) {
+    const conversationExclusions = exclusions && conversationId ? exclusions[conversationId] : null;
     return Boolean(
-      exclusions &&
-      conversationId &&
-      groupId &&
-      exclusions[conversationId] &&
-      exclusions[conversationId][groupId]
+      conversationExclusions &&
+      (conversationExclusions['*'] || (groupId && conversationExclusions[groupId]))
     );
   }
 
@@ -188,17 +186,20 @@
 
   function classifyConversation(conversation, groups, overrides, exclusions, retired) {
     const id = String(conversation && conversation.id || '');
-    const retiredChats = migrateRetired(retired);
+    const retiredChats = retired && typeof retired === 'object' ? retired : {};
     if (id && retiredChats[id]) {
+      const retiredEntry = retiredChats[id];
       return {
         groupId: null,
         strength: 'retired',
-        reason: retiredChats[id].reason || 'Conversation retired',
+        reason: retiredEntry && typeof retiredEntry === 'object'
+          ? retiredEntry.reason || 'Conversation retired'
+          : 'conversation-limit',
         score: 0
       };
     }
 
-    const excluded = migrateExclusions(exclusions);
+    const excluded = exclusions && typeof exclusions === 'object' ? exclusions : {};
     const overrideGroupId = overrides && id ? overrides[id] : null;
     const enabledGroups = (Array.isArray(groups) ? groups : [])
       .filter((group) => group && group.enabled !== false);
