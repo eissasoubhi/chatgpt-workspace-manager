@@ -9,13 +9,28 @@
   const NATIVE_PROJECTS_ATTR = 'data-cwm-native-projects';
   const CHAT_LINK_SELECTOR = 'a[href*="/c/"]';
   const PROJECT_LINK_SELECTOR = 'a[href*="/g/g-p-"], a[href*="/project"]';
+  const LIMIT_MARKERS = [
+    "you've reached the maximum length for this conversation",
+    'you’ve reached the maximum length for this conversation',
+    'you have reached the maximum length for this conversation',
+    'this conversation has reached its maximum length',
+    'conversation has reached the maximum length',
+    'this conversation is too long',
+    'vous avez atteint la longueur maximale de cette conversation',
+    'cette conversation a atteint sa longueur maximale',
+    'cette conversation est trop longue'
+  ].map(Core.normalizeText);
+
   let settings = Core.migrateSettings(null);
   let uiState = Core.migrateUiState(null, settings.groups);
   let index = {};
   let overrides = {};
+  let exclusions = {};
+  let retired = {};
   let observer = null;
   let scanTimer = null;
   let renderTimer = null;
+  let limitTimer = null;
   let deepScanRunning = false;
 
   async function loadState() {
@@ -23,18 +38,32 @@
       Core.STORAGE_KEYS.settings,
       Core.STORAGE_KEYS.index,
       Core.STORAGE_KEYS.overrides,
-      Core.STORAGE_KEYS.ui
+      Core.STORAGE_KEYS.ui,
+      Core.STORAGE_KEYS.exclusions,
+      Core.STORAGE_KEYS.retired
     ]);
 
     settings = Core.migrateSettings(stored[Core.STORAGE_KEYS.settings]);
     uiState = Core.migrateUiState(stored[Core.STORAGE_KEYS.ui], settings.groups);
     index = stored[Core.STORAGE_KEYS.index] || {};
     overrides = stored[Core.STORAGE_KEYS.overrides] || {};
+    exclusions = Core.migrateExclusions(stored[Core.STORAGE_KEYS.exclusions]);
+    retired = Core.migrateRetired(stored[Core.STORAGE_KEYS.retired]);
   }
 
   async function persistUiState() {
     uiState = Core.migrateUiState(uiState, settings.groups);
     await chrome.storage.local.set({ [Core.STORAGE_KEYS.ui]: uiState });
+  }
+
+  async function persistExclusions() {
+    exclusions = Core.migrateExclusions(exclusions);
+    await chrome.storage.local.set({ [Core.STORAGE_KEYS.exclusions]: exclusions });
+  }
+
+  async function persistRetired() {
+    retired = Core.migrateRetired(retired);
+    await chrome.storage.local.set({ [Core.STORAGE_KEYS.retired]: retired });
   }
 
   function getLinkTitle(link) {
@@ -49,11 +78,15 @@
 
   function firstUserMessage() {
     const node = document.querySelector('[data-message-author-role="user"]');
-    return String(node && (node.innerText || node.textContent) || '').trim().slice(0, 1000);
+    return String(node && (node.innerText || node.textContent) || '').trim().slice(0, 2000);
+  }
+
+  function activeConversationId() {
+    return Core.deriveConversationId(location.href, location.href);
   }
 
   function isActiveConversation(id) {
-    return Core.deriveConversationId(location.href, location.href) === id;
+    return activeConversationId() === id;
   }
 
   function nativeChatLinks() {
@@ -61,9 +94,46 @@
       .filter((link) => !link.closest(`#${PANEL_ID}`));
   }
 
+  function hasConversationLimitMessage() {
+    const candidates = Array.from(document.querySelectorAll(
+      '[role="alert"], [aria-live], [data-testid*="limit" i], [data-testid*="error" i], main p, main div'
+    ));
+
+    return candidates.some((node) => {
+      if (node.closest('[data-message-author-role]')) return false;
+      const text = Core.normalizeText(node.innerText || node.textContent || '');
+      if (text.length < 20 || text.length > 360) return false;
+      return LIMIT_MARKERS.some((marker) => text.includes(marker));
+    });
+  }
+
+  async function retireActiveConversationIfLimited() {
+    const id = activeConversationId();
+    if (!id || retired[id] || !hasConversationLimitMessage()) return false;
+
+    retired[id] = {
+      reason: 'conversation-limit',
+      retiredAt: new Date().toISOString()
+    };
+    await persistRetired();
+    scheduleRender();
+    return true;
+  }
+
+  function scheduleLimitCheck() {
+    clearTimeout(limitTimer);
+    limitTimer = setTimeout(() => {
+      retireActiveConversationIfLimited()
+        .catch((error) => console.warn('[ChatGPT Workspace Manager]', error));
+    }, 300);
+  }
+
   async function scanVisibleChats() {
     const links = nativeChatLinks();
-    if (!links.length) return { found: 0, changed: 0 };
+    if (!links.length) {
+      scheduleLimitCheck();
+      return { found: 0, changed: 0 };
+    }
 
     let changed = 0;
     const now = new Date().toISOString();
@@ -101,6 +171,7 @@
       scheduleRender();
     }
 
+    scheduleLimitCheck();
     return { found: links.length, changed };
   }
 
@@ -169,7 +240,13 @@
     Object.values(index)
       .sort((a, b) => String(b.lastSeenAt || '').localeCompare(String(a.lastSeenAt || '')))
       .forEach((conversation) => {
-        const classification = Core.classifyConversation(conversation, settings.groups, overrides);
+        const classification = Core.classifyConversation(
+          conversation,
+          settings.groups,
+          overrides,
+          exclusions,
+          retired
+        );
         if (classification.groupId && result.has(classification.groupId)) {
           result.get(classification.groupId).push(conversation);
         }
@@ -178,13 +255,42 @@
     return result;
   }
 
-  function createChatLink(conversation, group) {
+  async function excludeConversationFromGroup(conversationId, groupId) {
+    if (!conversationId || !groupId) return;
+    exclusions[conversationId] = exclusions[conversationId] || {};
+    exclusions[conversationId][groupId] = {
+      reason: 'manual',
+      excludedAt: new Date().toISOString()
+    };
+    await persistExclusions();
+    scheduleRender();
+  }
+
+  function createChatRow(conversation, group) {
+    const row = document.createElement('div');
+    row.className = 'cwm-chat-row';
+
     const link = document.createElement('a');
     link.className = 'cwm-chat-link';
     link.href = conversation.href;
     link.textContent = Core.cleanDisplayTitle(conversation.title, group);
     link.title = conversation.title;
-    return link;
+
+    const removeButton = document.createElement('button');
+    removeButton.type = 'button';
+    removeButton.className = 'cwm-chat-remove';
+    removeButton.textContent = '×';
+    removeButton.title = 'Remove from group';
+    removeButton.setAttribute('aria-label', `Remove ${conversation.title} from ${group.name}`);
+    removeButton.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      excludeConversationFromGroup(conversation.id, group.id)
+        .catch((error) => console.warn('[ChatGPT Workspace Manager]', error));
+    });
+
+    row.append(link, removeButton);
+    return row;
   }
 
   function createGroupDetails(group, records) {
@@ -205,13 +311,13 @@
     const list = document.createElement('div');
     list.className = 'cwm-chat-list';
     records.slice(0, 50).forEach((conversation) => {
-      list.append(createChatLink(conversation, group));
+      list.append(createChatRow(conversation, group));
     });
 
     if (!records.length) {
       const empty = document.createElement('div');
       empty.className = 'cwm-group-empty';
-      empty.textContent = 'No matching chats yet.';
+      empty.textContent = 'No active matching chats.';
       list.append(empty);
     } else if (records.length > 50) {
       const more = document.createElement('div');
@@ -401,6 +507,7 @@
     observer = new MutationObserver((records) => {
       if (records.length && records.every(mutationIsExtensionOwned)) return;
       scheduleScan();
+      scheduleLimitCheck();
       scheduleRender();
     });
     observer.observe(document.documentElement, { childList: true, subtree: true });
@@ -437,12 +544,19 @@
     if (changes[Core.STORAGE_KEYS.ui]) {
       uiState = Core.migrateUiState(changes[Core.STORAGE_KEYS.ui].newValue, settings.groups);
     }
+    if (changes[Core.STORAGE_KEYS.exclusions]) {
+      exclusions = Core.migrateExclusions(changes[Core.STORAGE_KEYS.exclusions].newValue);
+    }
+    if (changes[Core.STORAGE_KEYS.retired]) {
+      retired = Core.migrateRetired(changes[Core.STORAGE_KEYS.retired].newValue);
+    }
     scheduleRender();
   });
 
   async function init() {
     await loadState();
     await scanVisibleChats();
+    await retireActiveConversationIfLimited();
     render();
     startObserver();
   }
