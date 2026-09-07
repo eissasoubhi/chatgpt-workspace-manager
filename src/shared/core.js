@@ -11,7 +11,9 @@
     settings: 'cwm.settings.v1',
     index: 'cwm.index.v1',
     overrides: 'cwm.overrides.v1',
-    ui: 'cwm.ui.v1'
+    ui: 'cwm.ui.v1',
+    exclusions: 'cwm.exclusions.v1',
+    retired: 'cwm.retired.v1'
   });
 
   const DEFAULT_SETTINGS = Object.freeze({
@@ -33,6 +35,13 @@
     return String(value || '')
       .normalize('NFKC')
       .toLocaleLowerCase()
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function normalizeLooseText(value) {
+    return normalizeText(value)
+      .replace(/[\p{P}\p{S}]+/gu, ' ')
       .replace(/\s+/g, ' ')
       .trim();
   }
@@ -106,6 +115,55 @@
     };
   }
 
+  function migrateExclusions(value) {
+    const source = value && typeof value === 'object' ? value : {};
+    const result = {};
+
+    Object.entries(source).forEach(([conversationId, rawGroups]) => {
+      if (!conversationId || !rawGroups || typeof rawGroups !== 'object') return;
+      const groups = {};
+      Object.entries(rawGroups).forEach(([groupId, excluded]) => {
+        if (!groupId || !excluded) return;
+        groups[groupId] = excluded === true
+          ? { reason: 'manual' }
+          : {
+              reason: String(excluded.reason || 'manual'),
+              excludedAt: excluded.excludedAt ? String(excluded.excludedAt) : undefined
+            };
+      });
+      if (Object.keys(groups).length) result[conversationId] = groups;
+    });
+
+    return result;
+  }
+
+  function migrateRetired(value) {
+    const source = value && typeof value === 'object' ? value : {};
+    const result = {};
+
+    Object.entries(source).forEach(([conversationId, entry]) => {
+      if (!conversationId || !entry) return;
+      result[conversationId] = entry === true
+        ? { reason: 'conversation-limit' }
+        : {
+            reason: String(entry.reason || 'conversation-limit'),
+            retiredAt: entry.retiredAt ? String(entry.retiredAt) : undefined
+          };
+    });
+
+    return result;
+  }
+
+  function isConversationExcluded(exclusions, conversationId, groupId) {
+    return Boolean(
+      exclusions &&
+      conversationId &&
+      groupId &&
+      exclusions[conversationId] &&
+      exclusions[conversationId][groupId]
+    );
+  }
+
   function startsWithToken(text, token) {
     const normalizedText = normalizeText(text);
     const normalizedToken = normalizeText(token);
@@ -128,13 +186,24 @@
     return !next || /[\s:;,.!?—–\-\]\[()]/.test(next);
   }
 
-  function classifyConversation(conversation, groups, overrides) {
+  function classifyConversation(conversation, groups, overrides, exclusions, retired) {
     const id = String(conversation && conversation.id || '');
+    const retiredChats = migrateRetired(retired);
+    if (id && retiredChats[id]) {
+      return {
+        groupId: null,
+        strength: 'retired',
+        reason: retiredChats[id].reason || 'Conversation retired',
+        score: 0
+      };
+    }
+
+    const excluded = migrateExclusions(exclusions);
     const overrideGroupId = overrides && id ? overrides[id] : null;
     const enabledGroups = (Array.isArray(groups) ? groups : [])
       .filter((group) => group && group.enabled !== false);
 
-    if (overrideGroupId) {
+    if (overrideGroupId && !isConversationExcluded(excluded, id, overrideGroupId)) {
       const overridden = enabledGroups.find((group) => group.id === overrideGroupId);
       if (overridden) {
         return { groupId: overridden.id, strength: 'manual', reason: 'Manual override', score: 2000 };
@@ -144,9 +213,12 @@
     const title = String(conversation && conversation.title || '');
     const firstMessage = String(conversation && conversation.firstMessage || '');
     const haystack = normalizeText(`${title}\n${firstMessage}`);
+    const looseHaystack = normalizeLooseText(`${title}\n${firstMessage}`);
     const candidates = [];
 
     enabledGroups.forEach((group, priority) => {
+      if (isConversationExcluded(excluded, id, group.id)) return;
+
       if (group.command && (startsWithToken(title, group.command) || startsWithToken(firstMessage, group.command))) {
         candidates.push({
           groupId: group.id,
@@ -169,12 +241,17 @@
 
       (group.keywords || []).forEach((keyword) => {
         const normalizedKeyword = normalizeText(keyword);
-        if (normalizedKeyword && haystack.includes(normalizedKeyword)) {
+        const looseKeyword = normalizeLooseText(keyword);
+        const matches = Boolean(
+          normalizedKeyword &&
+          (haystack.includes(normalizedKeyword) || (looseKeyword && looseHaystack.includes(looseKeyword)))
+        );
+        if (matches) {
           candidates.push({
             groupId: group.id,
             strength: 'keyword',
             reason: `Keyword ${keyword}`,
-            score: 500 + Math.min(normalizedKeyword.length, 100),
+            score: 500 + Math.min(looseKeyword.length || normalizedKeyword.length, 100),
             priority
           });
         }
@@ -220,13 +297,19 @@
     return output || String(title || '').trim() || 'Untitled chat';
   }
 
-  function summarizeIndex(index, settings, overrides) {
+  function summarizeIndex(index, settings, overrides, exclusions, retired) {
     const groups = migrateSettings(settings).groups;
     const counts = Object.fromEntries(groups.map((group) => [group.id, 0]));
     let unclassified = 0;
 
     Object.values(index || {}).forEach((conversation) => {
-      const classification = classifyConversation(conversation, groups, overrides || {});
+      const classification = classifyConversation(
+        conversation,
+        groups,
+        overrides || {},
+        exclusions || {},
+        retired || {}
+      );
       if (classification.groupId && Object.prototype.hasOwnProperty.call(counts, classification.groupId)) {
         counts[classification.groupId] += 1;
       } else {
@@ -242,9 +325,13 @@
     DEFAULT_SETTINGS: clone(DEFAULT_SETTINGS),
     DEFAULT_UI_STATE: clone(DEFAULT_UI_STATE),
     normalizeText,
+    normalizeLooseText,
     createGroup,
     migrateSettings,
     migrateUiState,
+    migrateExclusions,
+    migrateRetired,
+    isConversationExcluded,
     startsWithToken,
     startsWithProjectName,
     classifyConversation,
