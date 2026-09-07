@@ -11,28 +11,35 @@ Instead of manually moving every conversation after creating it, define rules on
 
 The extension reuses the ChatGPT sidebar area normally occupied by the native **Projects** section. Native projects are collapsed behind a compact **Show projects** control, leaving the main sidebar space for workspace groups.
 
-## MVP features
+## Features
 
 - Configurable workspace groups.
 - One explicit command per group, such as `#MPC`.
 - Automatic project-prefix recognition, such as `MPC — …`.
 - Multiple keywords or phrases per group, including repository URLs.
+- Case-insensitive matching for commands, group names, and keywords.
+- Keyword matching tolerates simple punctuation and spacing differences.
+- Rules can match the chat title or the first user prompt once it has been indexed.
 - Deterministic priority: command → project prefix → longest keyword → group order.
 - Automatic indexing of ChatGPT conversation links as they load.
-- User-triggered deep scan that scrolls through the lazy-loaded sidebar, collects chat titles, then restores the previous scroll position.
+- User-triggered deep scan of lazy-loaded sidebar history.
 - Compact local workspace groups in the ChatGPT sidebar.
 - Groups are closed by default and remember their open/closed state.
+- Chats can be removed from a workspace without deleting the ChatGPT conversation.
+- Conversations detected as having reached ChatGPT's conversation-length limit are retired from workspace groups automatically.
 - Native ChatGPT Projects can be shown or hidden without moving conversations.
-- Popup with group counts and scan actions.
+- Popup with active group counts and scan actions.
+- Compact collapsible settings cards with drag-and-drop and arrow reordering.
+- Extension version is visible in the popup and options page.
 - Local-only storage via `chrome.storage.local`.
 - Light/dark mode using system colors.
 - Pure classification core with Node tests and GitHub Actions CI.
 
-Chats that do not match a workspace rule remain indexed internally but are not shown in a separate "Unclassified" folder.
+Chats that do not match a workspace rule, are manually removed, or are retired at the conversation limit remain ordinary ChatGPT chats. The extension does not delete them.
 
 ## Privacy
 
-The MVP does not use a server and does not call private ChatGPT APIs. Workspace settings, sidebar state, and indexed metadata stay in the browser's extension storage.
+The extension does not use a server and does not call private ChatGPT APIs. Workspace settings, sidebar state, exclusions, retirement state, and indexed metadata stay in the browser's extension storage.
 
 The index stores the chat ID, title, ChatGPT path, last-seen timestamp, and—when a chat is opened—the first user-message snippet so explicit commands or keywords can be recognized there too.
 
@@ -69,9 +76,16 @@ No build step is required.
 
 A title such as `MPC — API keys` is recognized automatically from the group name; it does not need to be duplicated as a keyword.
 
-## Sidebar behavior
+## Active chat lifecycle
 
-Workspace groups are inserted around the native Projects area instead of being prepended above every ChatGPT sidebar menu.
+Workspace groups are intended to contain chats that are still useful for active work.
+
+- Hover or focus a grouped chat and use **×** to remove it from that workspace. The original ChatGPT conversation remains untouched.
+- The settings page shows counts for manually removed and automatically retired chats, with restore actions.
+- When the currently open conversation displays a recognized ChatGPT maximum-length message, the extension records it as retired and removes it from workspace groups.
+- Limit detection is DOM-based and conservative. It only checks visible non-message UI; it does not call undocumented ChatGPT endpoints.
+
+## Sidebar behavior
 
 - Native projects are hidden by default behind **Show projects**.
 - Clicking **Show projects** reveals the native section; **Hide projects** collapses it again.
@@ -79,13 +93,22 @@ Workspace groups are inserted around the native Projects area instead of being p
 - Opening or closing a group is persisted locally and survives ChatGPT rerenders and page reloads.
 - The content observer ignores mutations created by the extension itself to avoid render loops that reset group state.
 
+## Settings UX
+
+- Existing group cards start collapsed so large configurations remain easy to scan.
+- Clicking a group summary opens its detailed fields.
+- The top **Add group** action inserts and opens a new group near the top, then focuses its name field.
+- **Add another group** at the bottom appends a new group there.
+- Groups can be reordered by drag-and-drop or with the ↑/↓ controls; saving persists that order to the ChatGPT sidebar.
+- Current extension version is shown as `vX.Y.Z`.
+
 ## How scanning works
 
 ChatGPT lazy-loads conversation history. The extension continuously indexes links that appear in the sidebar.
 
 **Deep scan history** walks the sidebar scroll container, collects titles as older items load, then returns the sidebar to its previous position. It does not open every conversation.
 
-Because old chat bodies are not exposed in the sidebar, first-message rules can only be learned for a chat after that conversation has been opened. Title, command, project-prefix, and title-keyword rules work during sidebar scanning.
+Because old chat bodies are not exposed in the sidebar, first-prompt rules can only be learned for a chat after that conversation has been opened. Title, command, project-prefix, and title-keyword rules work during sidebar scanning.
 
 ## Native ChatGPT Projects
 
@@ -101,7 +124,7 @@ Requirements: Node.js 20+.
 npm run check
 ```
 
-This runs the Node test suite and validates that the Manifest V3 references existing extension files.
+This runs the Node test suite and validates Manifest V3 references, aligned package/manifest versions, and visible version placeholders in the popup/options UI.
 
 ## Roadmap
 
