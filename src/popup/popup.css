@@ -5,9 +5,16 @@
 * { box-sizing: border-box; }
 body { margin: 0; background: Canvas; color: CanvasText; }
 .popup { width: 320px; padding: 16px; }
-header { display: grid; gap: 3px; margin-bottom: 12px; }
+header { display: grid; gap: 4px; margin-bottom: 12px; }
+.title-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 header strong { font-size: 16px; }
 header span, #status { color: color-mix(in srgb, currentColor 62%, transparent); font-size: 12px; }
+.version {
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 8%, transparent);
+  font-weight: 650;
+}
 .counts { display: grid; gap: 4px; margin-bottom: 14px; }
 .count-row { display: flex; justify-content: space-between; gap: 12px; padding: 5px 0; }
 .count-row span:last-child { color: color-mix(in srgb, currentColor 58%, transparent); }
@@ -25,5 +32,6 @@ button {
   text-align: left;
 }
 button:hover { background: color-mix(in srgb, CanvasText 14%, transparent); }
+button:focus-visible { outline: 2px solid color-mix(in srgb, currentColor 42%, transparent); outline-offset: 2px; }
 button:disabled { cursor: default; opacity: .5; }
 #status { min-height: 17px; margin: 10px 0 0; }

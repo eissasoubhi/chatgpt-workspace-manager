@@ -15,22 +15,74 @@ test('explicit command wins classification', () => {
   assert.equal(result.strength, 'command');
 });
 
-test('project name prefix classifies a chat', () => {
-  const result = Core.classifyConversation({ id: '2', title: 'JobPilot — deploy Oracle' }, groups, {});
+test('project name prefix classifies a chat case-insensitively', () => {
+  const result = Core.classifyConversation({ id: '2', title: 'jobpilot — deploy Oracle' }, groups, {});
   assert.equal(result.groupId, 'jobpilot');
   assert.equal(result.strength, 'project-prefix');
 });
 
-test('keyword classifies from title or first message', () => {
+test('keyword classifies from title or first prompt', () => {
   const result = Core.classifyConversation({ id: '3', title: 'Ranking issue', firstMessage: 'PLink duplicates are wrong' }, groups, {});
   assert.equal(result.groupId, 'mpc');
   assert.equal(result.strength, 'keyword');
+});
+
+test('keyword matching ignores case and simple punctuation differences', () => {
+  const result = Core.classifyConversation(
+    { id: '3b', title: 'Investigate JOB-SCORING regression' },
+    groups,
+    {}
+  );
+  assert.equal(result.groupId, 'jobpilot');
+  assert.equal(result.strength, 'keyword');
+});
+
+test('repository keyword matches with punctuation normalization', () => {
+  const result = Core.classifyConversation(
+    { id: '3c', firstMessage: 'Continue github.com/eissasoubhi/mpc please' },
+    groups,
+    {}
+  );
+  assert.equal(result.groupId, 'mpc');
 });
 
 test('manual override beats automatic rules', () => {
   const result = Core.classifyConversation({ id: '4', title: '#MPC ranking' }, groups, { '4': 'jobpilot' });
   assert.equal(result.groupId, 'jobpilot');
   assert.equal(result.strength, 'manual');
+});
+
+test('manual group exclusion keeps chat out of that group', () => {
+  const exclusions = { '4b': { mpc: { reason: 'manual' } } };
+  const result = Core.classifyConversation({ id: '4b', title: '#MPC ranking' }, groups, {}, exclusions);
+  assert.equal(result.groupId, null);
+  assert.equal(result.strength, 'none');
+});
+
+test('excluded group can fall through to another matching group', () => {
+  const exclusions = { '4c': { mpc: { reason: 'manual' } } };
+  const result = Core.classifyConversation({ id: '4c', title: '#MPC job scoring' }, groups, {}, exclusions);
+  assert.equal(result.groupId, 'jobpilot');
+  assert.equal(result.strength, 'keyword');
+});
+
+test('global exclusion keeps a manually removed chat out of every group', () => {
+  const exclusions = { '4global': { '*': { reason: 'manual' } } };
+  const result = Core.classifyConversation(
+    { id: '4global', title: '#MPC job scoring' },
+    groups,
+    {},
+    exclusions
+  );
+  assert.equal(result.groupId, null);
+  assert.equal(result.strength, 'none');
+});
+
+test('retired conversation is never placed in a group', () => {
+  const retired = { '4d': { reason: 'conversation-limit' } };
+  const result = Core.classifyConversation({ id: '4d', title: '#MPC ranking' }, groups, {}, {}, retired);
+  assert.equal(result.groupId, null);
+  assert.equal(result.strength, 'retired');
 });
 
 test('longer keyword wins when groups both match', () => {
@@ -87,4 +139,13 @@ test('ui state keeps only open known groups', () => {
   }, groups);
   assert.deepEqual(state.openGroups, { mpc: true });
   assert.equal(state.projectsVisible, true);
+});
+
+test('exclusion and retirement migrations sanitize stored values', () => {
+  const exclusions = Core.migrateExclusions({ chat: { mpc: true, empty: false }, global: { '*': true } });
+  const retired = Core.migrateRetired({ limited: true });
+  assert.equal(Core.isConversationExcluded(exclusions, 'chat', 'mpc'), true);
+  assert.equal(Core.isConversationExcluded(exclusions, 'chat', 'empty'), false);
+  assert.equal(Core.isConversationExcluded(exclusions, 'global', 'jobpilot'), true);
+  assert.equal(retired.limited.reason, 'conversation-limit');
 });

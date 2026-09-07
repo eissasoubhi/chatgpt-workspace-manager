@@ -100,10 +100,24 @@
   padding: 1px 0 4px 20px;
 }
 
+.cwm-chat-row {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  border-radius: 8px;
+}
+
+.cwm-chat-row:hover,
+.cwm-chat-row:focus-within {
+  background: color-mix(in srgb, currentColor 8%, transparent);
+}
+
 .cwm-chat-link {
   display: block;
+  flex: 1 1 auto;
+  min-width: 0;
   overflow: hidden;
-  padding: 6px 8px;
+  padding: 6px 4px 6px 8px;
   border-radius: 8px;
   color: inherit;
   text-decoration: none;
@@ -111,8 +125,35 @@
   white-space: nowrap;
 }
 
-.cwm-chat-link:hover,
 .cwm-chat-link:focus-visible {
-  background: color-mix(in srgb, currentColor 8%, transparent);
+  outline: 1px solid color-mix(in srgb, currentColor 35%, transparent);
+  outline-offset: -1px;
+}
+
+.cwm-chat-remove {
+  flex: 0 0 26px;
+  width: 26px;
+  height: 26px;
+  margin-right: 2px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: color-mix(in srgb, currentColor 62%, transparent);
+  cursor: pointer;
+  font: 16px/1 system-ui, sans-serif;
+  opacity: 0;
+  transition: opacity 100ms ease, background 100ms ease;
+}
+
+.cwm-chat-row:hover .cwm-chat-remove,
+.cwm-chat-row:focus-within .cwm-chat-remove,
+.cwm-chat-remove:focus-visible {
+  opacity: 1;
+}
+
+.cwm-chat-remove:hover,
+.cwm-chat-remove:focus-visible {
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  color: inherit;
   outline: none;
 }

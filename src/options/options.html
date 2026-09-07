@@ -9,36 +9,47 @@
   <body>
     <main class="page">
       <header class="hero">
-        <div>
+        <div class="hero-meta">
           <p class="eyebrow">ChatGPT Workspace Manager</p>
-          <h1>Organize chats automatically</h1>
-          <p class="lede">Create workspace groups and tell the extension how to recognize them. Everything stays in your browser.</p>
+          <span id="version" class="version-badge">v…</span>
         </div>
+        <h1>Organize chats automatically</h1>
+        <p class="lede">Keep active project chats together without changing where ChatGPT stores them.</p>
       </header>
 
-      <section class="panel" aria-labelledby="behavior-heading">
+      <section class="panel compact-panel" aria-labelledby="behavior-heading">
         <div class="section-heading">
           <div>
             <h2 id="behavior-heading">Behavior</h2>
-            <p>Keep workspace groups up to date as ChatGPT loads your chat list.</p>
+            <p>Keep groups current while you use ChatGPT.</p>
           </div>
         </div>
         <label class="toggle-row">
           <input id="auto-scan" type="checkbox">
           <span>
             <strong>Scan automatically</strong>
-            <small>Index chat titles as ChatGPT loads them.</small>
+            <small>Index chat titles and the first prompt as ChatGPT loads them.</small>
           </span>
         </label>
+        <div class="maintenance-row">
+          <div>
+            <strong>Removed chats</strong>
+            <small><span id="excluded-count">0</span> removed manually · <span id="retired-count">0</span> retired at conversation limit</small>
+          </div>
+          <div class="maintenance-actions">
+            <button id="restore-excluded" class="text-button" type="button">Restore manual</button>
+            <button id="restore-retired" class="text-button" type="button">Restore limited</button>
+          </div>
+        </div>
       </section>
 
       <section class="panel" aria-labelledby="groups-heading">
-        <div class="section-heading">
+        <div class="section-heading groups-heading">
           <div>
             <h2 id="groups-heading">Workspace groups</h2>
-            <p>Commands are strongest, then project-name prefixes, then keywords.</p>
+            <p>Commands and group names match regardless of uppercase/lowercase. Keywords also tolerate simple punctuation and spacing differences.</p>
           </div>
-          <button id="add-group" class="button secondary" type="button">Add group</button>
+          <button id="add-group" class="button secondary" type="button">+ Add group</button>
         </div>
 
         <div id="groups" class="groups"></div>
@@ -46,6 +57,7 @@
           <strong>No groups yet.</strong>
           <p>Create one for a project such as MPC or JobPilot.</p>
         </div>
+        <button id="add-group-bottom" class="button add-bottom" type="button">+ Add another group</button>
       </section>
 
       <footer class="save-bar">
@@ -56,8 +68,16 @@
 
     <template id="group-template">
       <article class="group-card">
-        <div class="group-toolbar">
-          <label class="enabled-label"><input class="group-enabled" type="checkbox"> Enabled</label>
+        <div class="group-card-header">
+          <button class="drag-handle" type="button" draggable="true" aria-label="Drag to reorder group" title="Drag to reorder">⋮⋮</button>
+          <button class="group-toggle" type="button" aria-expanded="false">
+            <span class="group-chevron" aria-hidden="true">›</span>
+            <span class="group-summary-copy">
+              <strong class="group-summary-name">New group</strong>
+              <small class="group-summary-meta">No command · No keywords</small>
+            </span>
+          </button>
+          <label class="enabled-label"><input class="group-enabled" type="checkbox"> <span>On</span></label>
           <div class="order-actions">
             <button class="icon-button move-up" type="button" aria-label="Move group up" title="Move up">↑</button>
             <button class="icon-button move-down" type="button" aria-label="Move group down" title="Move down">↓</button>
@@ -65,23 +85,25 @@
           </div>
         </div>
 
-        <label>
-          <span>Group name</span>
-          <input class="group-name" type="text" placeholder="MPC" autocomplete="off">
-          <small>A title that starts with this name, such as “MPC — API keys”, is classified automatically.</small>
-        </label>
+        <div class="group-fields" hidden>
+          <label>
+            <span>Group name</span>
+            <input class="group-name" type="text" placeholder="MPC" autocomplete="off">
+            <small>Titles or first prompts that start with this name are matched automatically.</small>
+          </label>
 
-        <label>
-          <span>Command</span>
-          <input class="group-command" type="text" placeholder="#MPC" autocomplete="off">
-          <small>Use it at the start of a chat title or first message for an explicit match.</small>
-        </label>
+          <label>
+            <span>Command</span>
+            <input class="group-command" type="text" placeholder="#MPC" autocomplete="off">
+            <small>Use it at the start of a title or first prompt for the strongest explicit match.</small>
+          </label>
 
-        <label>
-          <span>Keywords and phrases</span>
-          <textarea class="group-keywords" rows="4" placeholder="github.com/example/mpc&#10;PLink&#10;MPC extension"></textarea>
-          <small>One per line. Longer matches win when several groups match.</small>
-        </label>
+          <label>
+            <span>Keywords and phrases</span>
+            <textarea class="group-keywords" rows="4" placeholder="github.com/example/mpc&#10;PLink&#10;MPC extension"></textarea>
+            <small>One per line. Matching ignores uppercase/lowercase and simple punctuation differences. Longer matches win.</small>
+          </label>
+        </div>
       </article>
     </template>
 

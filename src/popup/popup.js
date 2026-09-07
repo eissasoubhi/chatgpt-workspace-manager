@@ -8,18 +8,24 @@
     const stored = await chrome.storage.local.get([
       Core.STORAGE_KEYS.settings,
       Core.STORAGE_KEYS.index,
-      Core.STORAGE_KEYS.overrides
+      Core.STORAGE_KEYS.overrides,
+      Core.STORAGE_KEYS.exclusions,
+      Core.STORAGE_KEYS.retired
     ]);
     const settings = Core.migrateSettings(stored[Core.STORAGE_KEYS.settings]);
     const index = stored[Core.STORAGE_KEYS.index] || {};
     const overrides = stored[Core.STORAGE_KEYS.overrides] || {};
-    return { settings, index, overrides };
+    const exclusions = Core.migrateExclusions(stored[Core.STORAGE_KEYS.exclusions]);
+    const retired = Core.migrateRetired(stored[Core.STORAGE_KEYS.retired]);
+    return { settings, index, overrides, exclusions, retired };
   }
 
   async function render() {
-    const { settings, index, overrides } = await getState();
-    const summary = Core.summarizeIndex(index, settings, overrides);
-    document.getElementById('summary').textContent = `${summary.total} chats indexed locally`;
+    const { settings, index, overrides, exclusions, retired } = await getState();
+    const summary = Core.summarizeIndex(index, settings, overrides, exclusions, retired);
+    const groupedTotal = Object.values(summary.counts).reduce((total, count) => total + count, 0);
+    document.getElementById('version').textContent = `v${chrome.runtime.getManifest().version}`;
+    document.getElementById('summary').textContent = `${groupedTotal} active grouped chat${groupedTotal === 1 ? '' : 's'}`;
 
     const root = document.getElementById('counts');
     root.replaceChildren();
