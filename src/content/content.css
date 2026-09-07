@@ -64,6 +64,14 @@
   outline: none;
 }
 
+.cwm-group.cwm-group-has-active > summary {
+  background: color-mix(in srgb, currentColor 5%, transparent);
+}
+
+.cwm-group.cwm-group-has-active > summary .cwm-group-name {
+  font-weight: 700;
+}
+
 .cwm-group > summary::-webkit-details-marker {
   display: none;
 }
@@ -110,6 +118,17 @@
 .cwm-chat-row:hover,
 .cwm-chat-row:focus-within {
   background: color-mix(in srgb, currentColor 8%, transparent);
+}
+
+.cwm-chat-row.is-active {
+  background: color-mix(in srgb, currentColor 13%, transparent);
+  box-shadow: inset 2px 0 0 currentColor;
+  font-weight: 650;
+}
+
+.cwm-chat-row.is-active:hover,
+.cwm-chat-row.is-active:focus-within {
+  background: color-mix(in srgb, currentColor 16%, transparent);
 }
 
 .cwm-chat-link {
