@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "ChatGPT Workspace Manager",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Organize ChatGPT conversations into smart local workspace groups using commands, project prefixes, and keywords.",
   "permissions": ["storage", "activeTab"],
   "host_permissions": [
@@ -24,7 +24,8 @@
       ],
       "js": [
         "src/shared/core.js",
-        "src/content/content.js"
+        "src/content/content.js",
+        "src/content/active-chat.js"
       ],
       "css": ["src/content/content.css"],
       "run_at": "document_idle"
