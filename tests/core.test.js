@@ -66,6 +66,18 @@ test('excluded group can fall through to another matching group', () => {
   assert.equal(result.strength, 'keyword');
 });
 
+test('global exclusion keeps a manually removed chat out of every group', () => {
+  const exclusions = { '4global': { '*': { reason: 'manual' } } };
+  const result = Core.classifyConversation(
+    { id: '4global', title: '#MPC job scoring' },
+    groups,
+    {},
+    exclusions
+  );
+  assert.equal(result.groupId, null);
+  assert.equal(result.strength, 'none');
+});
+
 test('retired conversation is never placed in a group', () => {
   const retired = { '4d': { reason: 'conversation-limit' } };
   const result = Core.classifyConversation({ id: '4d', title: '#MPC ranking' }, groups, {}, {}, retired);
@@ -130,9 +142,10 @@ test('ui state keeps only open known groups', () => {
 });
 
 test('exclusion and retirement migrations sanitize stored values', () => {
-  const exclusions = Core.migrateExclusions({ chat: { mpc: true, empty: false } });
+  const exclusions = Core.migrateExclusions({ chat: { mpc: true, empty: false }, global: { '*': true } });
   const retired = Core.migrateRetired({ limited: true });
   assert.equal(Core.isConversationExcluded(exclusions, 'chat', 'mpc'), true);
   assert.equal(Core.isConversationExcluded(exclusions, 'chat', 'empty'), false);
+  assert.equal(Core.isConversationExcluded(exclusions, 'global', 'jobpilot'), true);
   assert.equal(retired.limited.reason, 'conversation-limit');
 });
