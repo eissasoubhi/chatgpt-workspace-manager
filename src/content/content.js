@@ -76,9 +76,24 @@
     return candidates.map((value) => String(value || '').trim()).find(Boolean) || '';
   }
 
+  function firstUserMessageNode() {
+    return document.querySelector('[data-message-author-role="user"]');
+  }
+
   function firstUserMessage() {
-    const node = document.querySelector('[data-message-author-role="user"]');
+    const node = firstUserMessageNode();
     return String(node && (node.innerText || node.textContent) || '').trim().slice(0, 2000);
+  }
+
+  function isConversationAtStart() {
+    const node = firstUserMessageNode();
+    if (!node) return false;
+
+    const scroller = findScrollableAncestor(node);
+    if (scroller) return scroller.scrollTop <= 120;
+
+    const root = document.scrollingElement;
+    return !root || root.scrollTop <= 120;
   }
 
   function activeConversationId() {
@@ -147,19 +162,26 @@
       const url = new URL(rawHref, location.href);
       const href = url.pathname + url.search;
       const existing = index[id] || {};
-      const message = isActiveConversation(id) ? firstUserMessage() : existing.firstMessage || '';
+      const active = isActiveConversation(id);
+      const prompt = Core.resolveStableFirstPrompt(
+        existing,
+        active ? firstUserMessage() : '',
+        active && isConversationAtStart()
+      );
       const next = {
         id,
         title: title.slice(0, 500),
         href,
-        firstMessage: message,
+        firstMessage: prompt.firstMessage,
+        firstMessageSource: prompt.firstMessageSource,
         lastSeenAt: now
       };
 
       if (
         existing.title !== next.title ||
         existing.href !== next.href ||
-        existing.firstMessage !== next.firstMessage
+        existing.firstMessage !== next.firstMessage ||
+        existing.firstMessageSource !== next.firstMessageSource
       ) {
         changed += 1;
       }
