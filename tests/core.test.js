@@ -149,3 +149,27 @@ test('exclusion and retirement migrations sanitize stored values', () => {
   assert.equal(Core.isConversationExcluded(exclusions, 'global', 'jobpilot'), true);
   assert.equal(retired.limited.reason, 'conversation-limit');
 });
+
+test('indexed first prompt stays immutable when scrolling exposes another prompt', () => {
+  const existing = {
+    firstMessage: '#MPC initial project prompt',
+    firstMessageSource: 'conversation-start'
+  };
+  const prompt = Core.resolveStableFirstPrompt(existing, 'job scoring later in the chat', true);
+  assert.deepEqual(prompt, {
+    firstMessage: '#MPC initial project prompt',
+    firstMessageSource: 'conversation-start'
+  });
+});
+
+test('legacy viewport-derived prompt is ignored until conversation start is visible', () => {
+  const legacy = { firstMessage: 'PLink appears in a later visible message' };
+  const hiddenStart = Core.resolveStableFirstPrompt(legacy, 'PLink appears in a later visible message', false);
+  assert.deepEqual(hiddenStart, { firstMessage: '', firstMessageSource: '' });
+
+  const captured = Core.resolveStableFirstPrompt(legacy, '#JobPilot actual first prompt', true);
+  assert.deepEqual(captured, {
+    firstMessage: '#JobPilot actual first prompt',
+    firstMessageSource: 'conversation-start'
+  });
+});

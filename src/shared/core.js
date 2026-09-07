@@ -162,6 +162,27 @@
     );
   }
 
+  function resolveStableFirstPrompt(existingConversation, observedPrompt, captureAllowed) {
+    const existing = existingConversation && existingConversation.firstMessageSource === 'conversation-start'
+      ? String(existingConversation.firstMessage || '').trim().slice(0, 2000)
+      : '';
+
+    if (existing) {
+      return { firstMessage: existing, firstMessageSource: 'conversation-start' };
+    }
+
+    if (!captureAllowed) {
+      return { firstMessage: '', firstMessageSource: '' };
+    }
+
+    const observed = String(observedPrompt || '').trim().slice(0, 2000);
+    if (!observed) {
+      return { firstMessage: '', firstMessageSource: '' };
+    }
+
+    return { firstMessage: observed, firstMessageSource: 'conversation-start' };
+  }
+
   function startsWithToken(text, token) {
     const normalizedText = normalizeText(text);
     const normalizedToken = normalizeText(token);
@@ -333,6 +354,7 @@
     migrateExclusions,
     migrateRetired,
     isConversationExcluded,
+    resolveStableFirstPrompt,
     startsWithToken,
     startsWithProjectName,
     classifyConversation,
