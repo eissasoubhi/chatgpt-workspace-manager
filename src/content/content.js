@@ -255,12 +255,13 @@
     return result;
   }
 
-  async function excludeConversationFromGroup(conversationId, groupId) {
-    if (!conversationId || !groupId) return;
-    exclusions[conversationId] = exclusions[conversationId] || {};
-    exclusions[conversationId][groupId] = {
-      reason: 'manual',
-      excludedAt: new Date().toISOString()
+  async function removeConversationFromGroups(conversationId) {
+    if (!conversationId) return;
+    exclusions[conversationId] = {
+      '*': {
+        reason: 'manual',
+        excludedAt: new Date().toISOString()
+      }
     };
     await persistExclusions();
     scheduleRender();
@@ -280,12 +281,12 @@
     removeButton.type = 'button';
     removeButton.className = 'cwm-chat-remove';
     removeButton.textContent = '×';
-    removeButton.title = 'Remove from group';
-    removeButton.setAttribute('aria-label', `Remove ${conversation.title} from ${group.name}`);
+    removeButton.title = 'Remove from groups';
+    removeButton.setAttribute('aria-label', `Remove ${conversation.title} from workspace groups`);
     removeButton.addEventListener('click', (event) => {
       event.preventDefault();
       event.stopPropagation();
-      excludeConversationFromGroup(conversation.id, group.id)
+      removeConversationFromGroups(conversation.id)
         .catch((error) => console.warn('[ChatGPT Workspace Manager]', error));
     });
 
